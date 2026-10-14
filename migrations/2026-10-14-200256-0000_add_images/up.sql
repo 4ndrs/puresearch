@@ -1,0 +1,5 @@
+-- Your SQL goes here
+CREATE TABLE images (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  blake3 BLOB NOT NULL
+)

@@ -1,0 +1,6 @@
+-- Your SQL goes here
+CREATE TABLE files (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  path VARCHAR NOT NULL,
+  image_id INTEGER NOT NULL REFERENCES images(id)
+)
