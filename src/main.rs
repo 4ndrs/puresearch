@@ -64,13 +64,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     };
 
-                    let results = match index_file(connection, &hash, path) {
-                        Ok(results) => results,
-                        Err(error) => {
-                            eprintln!("error while indexing the file in {path}: {error}");
-                            continue;
-                        }
-                    };
+                    let results = index_file(connection, &hash, path)?;
 
                     if results.added_image {
                         println!("added new image with path: {path}")
