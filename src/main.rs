@@ -23,12 +23,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             dbg!(&path);
 
             let mut hasher = blake3::Hasher::new();
+            let mut failed_files = 0;
 
             for entry in std::fs::read_dir(path)? {
                 let entry = match entry {
                     Ok(entry) => entry,
                     Err(error) => {
                         eprintln!("failed to read entry: {error}");
+
+                        failed_files += 1;
 
                         continue;
                     }
@@ -38,6 +41,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Ok(path) => path,
                     Err(error) => {
                         eprintln!("failed to convert path to absolute: {error}");
+
+                        failed_files += 1;
 
                         continue;
                     }
@@ -51,6 +56,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if let Err(error) = hasher.update_mmap(&path) {
                         eprintln!("failed to update_mmap the file {}: {error}", path.display());
 
+                        failed_files += 1;
+
                         continue;
                     }
 
@@ -60,6 +67,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         Some(path) => path,
                         None => {
                             eprintln!("unable to extract a valid path for: {}", path.display());
+
+                            failed_files += 1;
+
                             continue;
                         }
                     };
@@ -74,6 +84,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         println!("image and file path already exists, skipping: {path}")
                     }
                 }
+            }
+
+            if failed_files > 0 {
+                return Err(format!("{failed_files} file(s) failed to index").into());
             }
         }
         Commands::Search { query } => {
