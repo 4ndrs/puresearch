@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use puresearch::{establish_connection, index_file};
 
 #[derive(Parser, Debug)]
 #[command(version)]
@@ -15,6 +16,7 @@ enum Commands {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Cli::parse();
+    let connection = &mut establish_connection()?;
 
     match args.commands {
         Commands::Index { path } => {
@@ -30,13 +32,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 {
                     println!("image found: {}", path.display());
 
-                    hasher.update_mmap(path)?;
+                    hasher.update_mmap(&path)?;
 
                     let hash = hasher.finalize();
 
                     dbg!(hash);
 
                     hasher.reset();
+
+                    index_file(
+                        connection,
+                        &hash,
+                        path.to_str().ok_or("path not a valid utf8")?,
+                    )?;
                 }
             }
         }
