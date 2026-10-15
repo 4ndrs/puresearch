@@ -14,15 +14,21 @@ pub fn establish_connection() -> Result<SqliteConnection, Box<dyn std::error::Er
     Ok(SqliteConnection::establish(&database_url)?)
 }
 
+pub struct IndexResults {
+    pub image_id: i32,
+    pub added_file: bool,
+    pub added_image: bool,
+}
+
 pub fn index_file(
     connection: &mut SqliteConnection,
     hash: &blake3::Hash,
     path: &str,
-) -> QueryResult<()> {
+) -> QueryResult<IndexResults> {
     use schema::{files, images};
 
     connection.transaction(|connection| {
-        insert_into(images::table)
+        let inserted_image_row = insert_into(images::table)
             .values(images::blake3.eq(hash.as_bytes()))
             .on_conflict(images::blake3)
             .do_nothing()
@@ -33,13 +39,24 @@ pub fn index_file(
             .select(images::id)
             .first(connection)?;
 
-        insert_into(files::table)
-            .values((files::path.eq(path), files::image_id.eq(image_id)))
-            .on_conflict(files::path)
-            .do_update()
-            .set(files::image_id.eq(image_id))
-            .execute(connection)?;
+        let inserted_file_row;
 
-        Ok(())
+        {
+            use diesel::query_dsl::methods::FilterDsl;
+
+            inserted_file_row = insert_into(files::table)
+                .values((files::path.eq(path), files::image_id.eq(image_id)))
+                .on_conflict(files::path)
+                .do_update()
+                .set(files::image_id.eq(image_id))
+                .filter(files::image_id.ne(image_id))
+                .execute(connection)?;
+        }
+
+        Ok(IndexResults {
+            image_id,
+            added_file: inserted_file_row != 0,
+            added_image: inserted_image_row != 0,
+        })
     })
 }

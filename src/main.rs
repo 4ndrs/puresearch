@@ -30,8 +30,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if let Some(extension) = path.extension()
                     && (extension == "png" || extension == "jpg")
                 {
-                    println!("image found: {}", path.display());
-
                     hasher.update_mmap(&path)?;
 
                     let hash = hasher.finalize();
@@ -40,11 +38,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     hasher.reset();
 
-                    index_file(
-                        connection,
-                        &hash,
-                        path.to_str().ok_or("path not a valid utf8")?,
-                    )?;
+                    let path = path.to_str().ok_or("path not a valid utf8")?;
+                    let results = index_file(connection, &hash, path)?;
+
+                    if results.added_image {
+                        println!("added new image with path: {path}")
+                    } else if results.added_file {
+                        println!("added new path to image id {}: {path}", results.image_id);
+                    } else {
+                        println!("image and file path already exists, skipping: {path}")
+                    }
                 }
             }
         }
