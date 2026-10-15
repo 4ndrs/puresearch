@@ -18,31 +18,28 @@ pub fn index_file(
     connection: &mut SqliteConnection,
     hash: &blake3::Hash,
     path: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    use schema::files;
-    use schema::images;
+) -> QueryResult<()> {
+    use schema::{files, images};
 
     connection.transaction(|connection| {
-        insert_into(images::dsl::images)
-            .values(images::dsl::blake3.eq(hash.as_bytes()))
-            .on_conflict(images::dsl::blake3)
+        insert_into(images::table)
+            .values(images::blake3.eq(hash.as_bytes()))
+            .on_conflict(images::blake3)
             .do_nothing()
             .execute(connection)?;
 
-        let image_id: i32 = images::dsl::images
-            .filter(images::dsl::blake3.eq(hash.as_bytes()))
-            .select(images::dsl::id)
-            .get_result(connection)?;
+        let image_id: i32 = images::table
+            .filter(images::blake3.eq(hash.as_bytes()))
+            .select(images::id)
+            .first(connection)?;
 
-        insert_into(files::dsl::files)
-            .values((files::dsl::path.eq(path), files::dsl::image_id.eq(image_id)))
-            .on_conflict(files::dsl::path)
+        insert_into(files::table)
+            .values((files::path.eq(path), files::dsl::image_id.eq(image_id)))
+            .on_conflict(files::path)
             .do_update()
-            .set(files::dsl::image_id.eq(image_id))
+            .set(files::image_id.eq(image_id))
             .execute(connection)?;
 
-        Ok::<(), Box<dyn std::error::Error>>(())
-    })?;
-
-    Ok(())
+        Ok(())
+    })
 }
