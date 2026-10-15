@@ -55,6 +55,9 @@ pub fn index_file(
 
         Ok(IndexResults {
             image_id,
+            // this added file can also be an update
+            // eg. the image's content change but the path is the same
+            // and already in the database FIXME
             added_file: inserted_file_row != 0,
             added_image: inserted_image_row != 0,
         })

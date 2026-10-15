@@ -25,21 +25,52 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut hasher = blake3::Hasher::new();
 
             for entry in std::fs::read_dir(path)? {
-                let path = std::path::absolute(entry?.path())?;
+                let entry = match entry {
+                    Ok(entry) => entry,
+                    Err(error) => {
+                        eprintln!("failed to read entry: {error}");
+
+                        continue;
+                    }
+                };
+
+                let path = match std::path::absolute(entry.path()) {
+                    Ok(path) => path,
+                    Err(error) => {
+                        eprintln!("failed to convert path to absolute: {error}");
+
+                        continue;
+                    }
+                };
 
                 if let Some(extension) = path.extension()
                     && (extension == "png" || extension == "jpg")
                 {
-                    hasher.update_mmap(&path)?;
+                    hasher.reset();
+
+                    if let Err(error) = hasher.update_mmap(&path) {
+                        eprintln!("failed to update_mmap the file {}: {error}", path.display());
+
+                        continue;
+                    }
 
                     let hash = hasher.finalize();
 
-                    dbg!(hash);
+                    let path = match path.to_str() {
+                        Some(path) => path,
+                        None => {
+                            eprintln!("unable to extract a valid path for: {}", path.display());
+                            continue;
+                        }
+                    };
 
-                    hasher.reset();
-
-                    let path = path.to_str().ok_or("path not a valid utf8")?;
-                    let results = index_file(connection, &hash, path)?;
+                    let results = match index_file(connection, &hash, path) {
+                        Ok(results) => results,
+                        Err(error) => {
+                            eprintln!("error while indexing the file in {path}: {error}");
+                            continue;
+                        }
+                    };
 
                     if results.added_image {
                         println!("added new image with path: {path}")
