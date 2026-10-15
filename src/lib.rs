@@ -34,7 +34,7 @@ pub fn index_file(
             .first(connection)?;
 
         insert_into(files::table)
-            .values((files::path.eq(path), files::dsl::image_id.eq(image_id)))
+            .values((files::path.eq(path), files::image_id.eq(image_id)))
             .on_conflict(files::path)
             .do_update()
             .set(files::image_id.eq(image_id))
