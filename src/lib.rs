@@ -1,7 +1,10 @@
 mod models;
 mod schema;
 
-use diesel::insert_into;
+pub mod clip;
+
+use candle_core::Tensor;
+use diesel::{insert_into, update};
 use dotenvy::dotenv;
 
 use diesel::prelude::*;
@@ -62,4 +65,38 @@ pub fn index_file(
             added_image: inserted_image_row != 0,
         })
     })
+}
+
+pub fn is_missing_embedding(connection: &mut SqliteConnection, image_id: i32) -> QueryResult<bool> {
+    use schema::images;
+
+    // im trying to do something like this
+    // select id from images where id = {image_id} and embedding is null;
+    // just to check if the id has missing embedding
+    let result: Option<i32> = images::table
+        .select(images::id)
+        .filter(images::id.eq(image_id))
+        .filter(images::embedding.is_null())
+        .first(connection)
+        .optional()?;
+
+    match result {
+        Some(_) => return Ok(true),
+        None => return Ok(false),
+    }
+}
+
+pub fn save_embedding(
+    connection: &mut SqliteConnection,
+    image_id: i32,
+    embedding: &[u8],
+) -> QueryResult<()> {
+    use schema::images;
+
+    update(images::table)
+        .filter(images::id.eq(image_id))
+        .set(images::embedding.eq(embedding))
+        .execute(connection)?;
+
+    Ok(())
 }

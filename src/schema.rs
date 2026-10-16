@@ -12,6 +12,7 @@ diesel::table! {
     images (id) {
         id -> Integer,
         blake3 -> Binary,
+        embedding -> Nullable<Binary>,
     }
 }
 

@@ -1,5 +1,8 @@
 use clap::{Parser, Subcommand};
-use puresearch::{establish_connection, index_file};
+use puresearch::{
+    clip::{generate_image_embedding, get_clip_model, get_device_and_config},
+    establish_connection, index_file, is_missing_embedding, save_embedding,
+};
 
 #[derive(Parser, Debug)]
 #[command(version)]
@@ -24,6 +27,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let mut hasher = blake3::Hasher::new();
             let mut failed_files = 0;
+
+            let (device, config) = get_device_and_config();
+
+            let model = get_clip_model(&config, &device)?;
 
             for entry in std::fs::read_dir(path)? {
                 let entry = match entry {
@@ -75,6 +82,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     };
 
                     let results = index_file(connection, &hash, path)?;
+
+                    if is_missing_embedding(connection, results.image_id)? {
+                        match generate_image_embedding(path, &config, &device, &model) {
+                            Ok(embedding) => {
+                                save_embedding(connection, results.image_id, &embedding)?
+                            }
+                            Err(error) => eprintln!(
+                                "error while generating the embedding for image id {}: {error}",
+                                results.image_id
+                            ),
+                        }
+                    }
 
                     if results.added_image {
                         println!("added new image with path: {path}")

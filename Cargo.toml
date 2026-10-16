@@ -9,3 +9,8 @@ chrono = "0.4.45"
 clap = { version = "4.6.7", features = ["derive"] }
 diesel = { version = "2.3.14", features = ["sqlite", "returning_clauses_for_sqlite_3_35", "chrono"] }
 dotenvy = "0.15.7"
+candle-core = "0.11.0"
+candle-nn = "0.11.0"
+candle-transformers = "0.11.0"
+image = "0.25.10"
+tokenizers = "0.23.2"
