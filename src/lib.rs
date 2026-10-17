@@ -3,9 +3,12 @@ mod schema;
 
 pub mod clip;
 
-use candle_core::Tensor;
+use std::collections::HashMap;
+
+use candle_core::{Device, Tensor};
 use diesel::{insert_into, update};
 use dotenvy::dotenv;
+use tokenizers::Tokenizer;
 
 use diesel::prelude::*;
 
@@ -99,4 +102,63 @@ pub fn save_embedding(
         .execute(connection)?;
 
     Ok(())
+}
+
+pub fn get_all_embeddings(connection: &mut SqliteConnection) -> QueryResult<Vec<(i32, Vec<u8>)>> {
+    use schema::images;
+
+    // select id,embedding from images where embedding is not null;
+    let results = images::table
+        .select((images::id, images::embedding.assume_not_null()))
+        .filter(images::embedding.is_not_null())
+        .load::<(i32, Vec<u8>)>(connection)?;
+
+    Ok(results)
+}
+
+pub fn get_paths(
+    connection: &mut SqliteConnection,
+    image_ids: &Vec<i32>,
+) -> Result<HashMap<i32, Vec<String>>, Box<dyn std::error::Error>> {
+    use schema::files;
+
+    // images can have multiple paths so i will need to have all of them
+    // select image_id,path from files where image_id in {image_ids};
+    let results = files::table
+        .select((files::image_id, files::path))
+        .filter(files::image_id.eq_any(image_ids))
+        .load::<(i32, String)>(connection)?;
+
+    let mut hashmap: HashMap<i32, Vec<String>> = HashMap::new();
+
+    for (image_id, path) in results {
+        match hashmap.get_mut(&image_id) {
+            Some(paths) => paths.push(path),
+            None => {
+                hashmap.insert(image_id, Vec::from([path]));
+            }
+        }
+    }
+
+    Ok(hashmap)
+}
+
+pub fn get_tokenizer() -> Result<Tokenizer, Box<dyn std::error::Error>> {
+    let tokenizer = Tokenizer::from_file("tokenizer.json").map_err(|error| format!("{error}"))?;
+
+    Ok(tokenizer)
+}
+
+fn generate_tokens(
+    text: &str,
+    tokenizer: &Tokenizer,
+    device: &Device,
+) -> Result<Tensor, Box<dyn std::error::Error>> {
+    let tokens = tokenizer
+        .encode(text, true)
+        .map_err(|error| format!("{error}"))?;
+
+    let tokens = Tensor::new(tokens.get_ids(), &device)?.unsqueeze(0)?;
+
+    Ok(tokens)
 }

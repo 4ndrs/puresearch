@@ -1,7 +1,8 @@
 use clap::{Parser, Subcommand};
 use puresearch::{
-    clip::{generate_image_embedding, get_clip_model, get_device_and_config},
-    establish_connection, index_file, is_missing_embedding, save_embedding,
+    clip::{generate_image_embedding, get_clip_model, get_device_and_config, get_scores},
+    establish_connection, get_all_embeddings, get_paths, get_tokenizer, index_file,
+    is_missing_embedding, save_embedding,
 };
 
 #[derive(Parser, Debug)]
@@ -21,16 +22,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Cli::parse();
     let connection = &mut establish_connection()?;
 
+    let (device, config) = get_device_and_config();
+
+    let model = get_clip_model(&config, &device)?;
+
     match args.commands {
         Commands::Index { path } => {
             dbg!(&path);
 
             let mut hasher = blake3::Hasher::new();
             let mut failed_files = 0;
-
-            let (device, config) = get_device_and_config();
-
-            let model = get_clip_model(&config, &device)?;
 
             for entry in std::fs::read_dir(path)? {
                 let entry = match entry {
@@ -110,7 +111,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Commands::Search { query } => {
-            dbg!(query);
+            dbg!(&query);
+
+            let tokenizer = get_tokenizer()?;
+
+            let (image_ids, embeddings): (Vec<_>, Vec<_>) =
+                get_all_embeddings(connection)?.into_iter().unzip();
+
+            let scores = get_scores(&model, tokenizer, &device, &embeddings, &query)?;
+
+            let mut scored_image_ids: Vec<(_, _)> = image_ids.iter().zip(scores).collect();
+
+            scored_image_ids.sort_by(|(_, score_a), (_, score_b)| score_b.total_cmp(score_a));
+
+            let paths_map = get_paths(connection, &image_ids)?;
+
+            for (image_id, score) in scored_image_ids {
+                let image_paths = paths_map
+                    .get(image_id)
+                    .map(|paths| paths.join(", "))
+                    .unwrap_or_else(|| "no paths".to_string());
+
+                println!("{score} {image_paths}");
+            }
         }
     }
 

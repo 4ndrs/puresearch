@@ -1,3 +1,4 @@
 /target
 /experiments
 model.safetensors
+tokenizer.json
