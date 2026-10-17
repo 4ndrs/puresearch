@@ -1,4 +1,3 @@
-mod models;
 mod schema;
 
 pub mod clip;
@@ -131,6 +130,7 @@ pub fn get_paths(
 
     let mut hashmap: HashMap<i32, Vec<String>> = HashMap::new();
 
+    // TODO check entry api
     for (image_id, path) in results {
         match hashmap.get_mut(&image_id) {
             Some(paths) => paths.push(path),
