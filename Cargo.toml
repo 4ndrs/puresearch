@@ -2,6 +2,7 @@
 name = "puresearch"
 version = "0.1.0"
 edition = "2024"
+default-run = "iced-ui"
 
 [dependencies]
 blake3 = { version = "1.8.7", features = ["rayon", "mmap"] }
@@ -14,3 +15,4 @@ candle-nn = "0.11.0"
 candle-transformers = "0.11.0"
 image = "0.25.10"
 tokenizers = "0.23.2"
+iced = "0.14.0"
