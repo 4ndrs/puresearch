@@ -2,3 +2,4 @@
 /experiments
 model.safetensors
 tokenizer.json
+*session.vim
